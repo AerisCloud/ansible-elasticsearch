@@ -1,0 +1,77 @@
+- include: centos.yml
+  when: ansible_distribution == 'CentOS'
+  tags:
+    - elasticsearch
+ 
+- include: debian.yml
+  when: ansible_distribution == 'Debian'
+  tags:
+    - elasticsearch
+ 
+- include: tuning.yml
+  tags:
+    - elasticsearch
+ 
+- name: "Install ElasticSearch plugins"
+  shell: |
+    chdir=/usr/share/elasticsearch
+    creates=/usr/share/elasticsearch/plugins/{{ item.dest }}
+    
+    bin/plugin -install {{ item.src }}
+  with_items:
+    - src: royrusso/elasticsearch-HQ
+      dest: HQ
+    - src: mobz/elasticsearch-head
+      dest: head
+  tags:
+    - elasticsearch
+    - plugins
+
+- name: "Setup ElasticSearch configuration"
+  template: >
+    src=elasticsearch.yml
+    dest=/etc/elasticsearch/elasticsearch.yml
+    mode=0640
+    owner=root
+    group=elasticsearch
+  notify:
+    - Restart ElasticSearch
+  tags:
+    - elasticsearch
+    - configs
+    - files
+
+- name: "Make sure ElasticSearch is running"
+  service: >
+    name=elasticsearch
+    state=started
+    enabled=yes
+  tags:
+    - elasticsearch
+    - services
+
+- name: "Make sure the required node version is installed"
+  shell: |
+    creates={{ nvm_dir }}/{{ elasticsearch_node_version }}/bin
+    executable=/bin/bash
+    
+    source {{ nvm_dir }}/nvm.sh && \
+    nvm install {{ elasticsearch_node_version }}
+  tags:
+    - elasticsearch
+    - nodejs
+
+- name: "Install elasticdump"
+  shell: |
+    executable=/bin/bash
+    chdir=/opt
+
+    [ ! -d elasticdump ] && git clone https://github.com/taskrabbit/elasticsearch-dump.git elasticdump
+    cd elasticdump
+    git checkout {{ elasticdump_version }}
+
+    source {{ nvm_dir }}/nvm.sh
+    nvm use {{ elasticsearch_node_version }}
+    npm install .
+  tags:
+    - elasticsearch

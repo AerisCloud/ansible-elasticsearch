@@ -1,0 +1,27 @@
+galaxy_info:
+  author: Marc Trudel <mtrudel@wizcorp.jp>
+  description: Installs ElasticSearch
+  company: Wizcorp K.K.
+  license: MIT
+  min_ansible_version: 1.8.1
+  platforms:
+    - name: EL
+      versions:
+        - 6
+        - 7
+    - name: Debian
+      versions:
+        - wheezy
+  categories:
+    - database
+    - database:nosql
+    - monitoring
+dependencies:
+  - role: aeriscloud.nodejs
+  - role: aeriscloud.repos
+    repositories:
+      centos6:
+        - elasticsearch
+      centos7:
+        - elasticsearch
+  - role: aeriscloud.yum

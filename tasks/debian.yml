@@ -1,0 +1,77 @@
+- name: "Set elasticsearch version"
+  set_fact:
+    es_ver: "{{ elasticsearch_version[:3] }}"
+  tags:
+    - elasticsearch
+
+- name: "Download and install the Public Signing Key"
+  apt_key: >
+    url=https://packages.elasticsearch.org/GPG-KEY-elasticsearch
+    state=present
+  tags:
+    - elasticsearch
+    - pkgs
+
+- name: "Add Elasticsearch apt repository"
+  apt_repository: >
+    repo="deb http://packages.elasticsearch.org/elasticsearch/{{ es_ver }}/debian stable main"
+    state=present
+  tags:
+    - elasticsearch
+    - repos
+
+- name: "Install Elasticsearch's dependencies"
+  apt: >
+    name={{ item }}
+    state=present
+    update_cache=yes
+  with_items:
+    - openjdk-7-jre-headless
+  tags:
+    - elasticsearch
+    - pkgs
+
+- name: "Check if Java 7 as the default"
+  file: >
+    src=/usr/lib/jvm/java-1.7.0-openjdk-amd64/jre/bin/java
+    dest=/etc/alternatives/java
+    state=link
+  register: java_set
+  tags:
+    - elasticsearch
+    - files
+
+- name: "Ensure Java 7 is the default"
+  shell: |
+    executable=/bin/bash
+    update-alternatives --set java /usr/lib/jvm/java-7-openjdk-amd64/jre/bin/java
+  when: java_set.changed
+  tags:
+    - elasticsearch
+
+- name: "Install Elasticsearch"
+  apt: >
+    update_cache=yes
+    name=elasticsearch
+  notify:
+    - Restart ElasticSearch
+  tags:
+    - elasticsearch
+    - pkgs
+
+- name: "Configure Elasticsearch to automatically start during bootup"
+  service: >
+    name=elasticsearch
+    runlevel="95 10"
+    enabled=yes
+  tags:
+    - elasticsearch
+    - service
+
+- name: "Upload logrotate config"
+  template: >
+    src=logrotate.j2
+    dest=/etc/logrotate.d/elasticsearch
+  tags:
+    - elasticsearch
+    - files

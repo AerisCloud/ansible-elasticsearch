@@ -1,0 +1,37 @@
+- name: "Reduce swappiness and increase max_map_count"
+  sysctl: >
+    name={{ item.name }}
+    value={{ item.value }}
+    ignoreerrors=true
+    state=present
+  with_items:
+    - { name: 'vm.swappiness', value: 1 }
+    - { name: 'vm.max_map_count', value: 262144 }
+  tags:
+    - elasticsearch
+    - sysctl
+
+- name: "Lock the process address space into RAM"
+  lineinfile: >
+    line='bootstrap.mlockall: true'
+    dest=/etc/elasticsearch/elasticsearch.yml
+  tags:
+    - elasticsearch
+
+- name: "Configure ES_HEAP_SIZE"
+  lineinfile: >
+    line='ES_HEAP_SIZE={{ elasticsearch_heap_size }}'
+    regexp='^#?ES_HEAP_SIZE='
+    dest=/etc/sysconfig/elasticsearch
+  when: ansible_distribution == 'CentOS'
+  tags:
+    - elasticsearch
+ 
+- name: "Configure ES_HEAP_SIZE"
+  lineinfile: >
+    line='ES_HEAP_SIZE={{ elasticsearch_heap_size }}'
+    regexp='^#?ES_HEAP_SIZE='
+    dest=/etc/default/elasticsearch
+  when: ansible_distribution == 'Ubuntu' or ansible_distribution == 'Debian'
+  tags:
+    - elasticsearch

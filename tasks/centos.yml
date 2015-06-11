@@ -1,0 +1,44 @@
+- name: "Set elasticsearch version"
+  set_fact:
+    es_ver: "{{ elasticsearch_version[:3] }}"
+  tags:
+    - pkgs
+    - elasticsearch
+
+- name: "Download and install the Public Signing Key"
+  rpm_key: >
+    key=https://packages.elastic.co/GPG-KEY-elasticsearch
+    state=present
+  tags:
+    - pkgs
+    - elasticsearch
+
+- name: "Install Elasticsearch and its dependencies"
+  yum: >
+    name={{ item }}
+    state=present
+    enablerepo=elasticsearch-{{ es_ver }}
+  with_items:
+    - java-1.7.0-openjdk
+    - elasticsearch-{{ elasticsearch_version }}
+  tags:
+    - pkgs
+    - elasticsearch
+  notify:
+    - Restart ElasticSearch
+
+- name: "Configure Elasticsearch to automatically start during bootup"
+  service:
+    name=elasticsearch
+    enabled=yes
+  tags:
+    - pkgs
+    - elasticsearch
+
+- name: "Upload logrotate config"
+  template: >
+    src=logrotate.j2
+    dest=/etc/logrotate.d/elasticsearch
+  tags:
+    - files
+    - elasticsearch

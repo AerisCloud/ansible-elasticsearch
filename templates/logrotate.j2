@@ -1,0 +1,11 @@
+/var/log/elasticsearch/*.log {
+    daily
+    rotate 20
+    size 100M
+    copytruncate
+    compress
+    delaycompress
+    missingok
+    notifempty
+    create 644 elasticsearch elasticsearch
+}
