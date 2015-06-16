@@ -1,0 +1,67 @@
+#
+# ######################################################
+#
+# cloud job elasticsearch_restore my_inventory --limit="node1.elasticsearch1.*" \
+#   --extra-vars="aws_access_key=xxx" \
+#   --extra-vars="aws_secret_key=xxx" \
+#   --extra-vars="restore_date=20250301" \
+#   --extra-vars="from_datacenter=mygame-jp.prod" \  # optional, default is the current datacenter
+#   --extra-vars="from_cluster=es" # optional, default is current cluster
+#
+#       Timestamps are in the format:
+#
+#       Ymd_HMS
+#
+#       Exact match is applied.
+#
+
+- hosts: localhost
+  connection: local
+  gather_facts: false
+  vars_prompt:
+    data_destroy_accept: "WARNING: this process WILL overwrite some or all existing data. Agreed? (y/n)"
+  tasks:
+    - name: "Check that the user agreed to the conditions"
+      fail: >
+        msg="User abort"
+      when: data_destroy_accept != "y"
+
+- hosts: elasticsearch
+  gather_facts: true
+  sudo: true
+  user: "{{ username }}"
+  tasks:
+    - name: "Create the elasticsearch-restore directory"
+      file: >
+        path=/tmp/elasticsearch-restore/
+        state=directory
+
+    - name: "Fetch the backups"
+      s3: >
+        dest=/tmp/elasticsearch-restore/backup.gz
+        bucket="{{ lookup('env','AWS_BUCKET') }}"
+        object="/{{ from_datacenter|default(datacenter) }}/{{ from_cluster|default(elasticsearch_cluster_name) }}/{{ restore_date }}.gz"
+        overwrite=False
+        region=ap-northeast-1
+        mode=get
+        aws_access_key={{ aws_access_key  }}
+        aws_secret_key={{ aws_secret_key  }}
+
+    - name: "Restore the data"
+      shell: |
+        chdir=/tmp/elasticsearch-restore/
+
+        set -e
+
+        gunzip -c backup.gz \
+          | /opt/elasticdump/bin/elasticdump \
+            --bulk=true \
+            --input=$ \
+            --output=http://{{ ansible_ssh_host }}:9200/
+
+        rm backup.gz
+
+    - name: "Remove local copy of the backup"
+      file: >
+        path="/tmp/elasticsearch-restore"
+        state=absent
