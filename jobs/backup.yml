@@ -1,0 +1,67 @@
+#
+# NOTE: YOU MUST LIMIT TO A SINGLE NODE IN
+# THE CLUSTER: DON'T BACKUP EVERY NODE, ALL
+# BACKUPS ARE GOING TO BE THE SAME
+#
+# cloud job elasticsearch_backup my_inventory --limit="node2.xtradb1" \
+#   --extra-vars="aws_access_key=xxx" \
+#   --extra-vars="aws_secret_key=xxx" \
+#
+
+- hosts: elasticsearch
+  gather_facts: true
+  sudo: true
+  user: "{{ deploy_user|default('deploy') }}"
+  tasks:
+    - name: "Read aws_access_key from the environment"
+      local_action:
+        module: set_fact
+        aws_access_key: "{{ lookup('env','AWS_ACCESS_KEY_ID') }}"
+      when: aws_access_key is not defined
+
+    - name: "Read aws_secret_key from the environment"
+      local_action:
+        module: set_fact
+        aws_secret_key: "{{ lookup('env','AWS_SECRET_ACCESS_KEY') }}"
+      when: aws_secret_key is not defined
+
+    - name: "Set current date"
+      shell: >
+        date +%Y%m%d_%H%M%S
+      register: date
+
+    - name: "Make backup directory"
+      file: >
+        path=/tmp/elasticsearch-backup
+        state=directory
+
+    - name: "Backup ElasticSearch"
+      shell: |
+        chdir=/tmp/elasticsearch-backup/
+
+        set -e
+
+        /opt/elasticdump/bin/elasticdump \
+            --input=http://{{ ansible_ssh_host }}:9200/ \
+            --output=$ \
+            | gzip > backup.gz
+
+    - name: "Send the backup file to S3"
+      s3: >
+        src=/tmp/elasticsearch-backup/backup.gz
+        bucket="{{ lookup('env','AWS_BUCKET') }}"
+        object="/{{ datacenter }}/{{ elasticsearch_cluster_name }}/{{ date.stdout }}.gz"
+        region=ap-northeast-1
+        mode=put
+        overwrite=False
+        aws_access_key={{ aws_access_key  }}
+        aws_secret_key={{ aws_secret_key  }}
+
+    - name: "Remove local copies of the backup"
+      file: >
+        path="/tmp/elasticsearch-backup/backup.gz"
+        state=absent
+
+    - name: "Backup completed. Please use the following timestamp if you wish to restore"
+      debug: >
+        msg="{{ date.stdout }}"
