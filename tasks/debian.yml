@@ -1,25 +1,3 @@
-- name: "Set elasticsearch version"
-  set_fact:
-    es_ver: "{{ elasticsearch_version[:3] }}"
-  tags:
-    - elasticsearch
-
-- name: "Download and install the Public Signing Key"
-  apt_key: >
-    url=https://packages.elasticsearch.org/GPG-KEY-elasticsearch
-    state=present
-  tags:
-    - elasticsearch
-    - pkgs
-
-- name: "Add Elasticsearch apt repository"
-  apt_repository: >
-    repo="deb http://packages.elasticsearch.org/elasticsearch/{{ es_ver }}/debian stable main"
-    state=present
-  tags:
-    - elasticsearch
-    - repos
-
 - name: "Install Elasticsearch's dependencies"
   apt: >
     name={{ item }}
@@ -27,24 +5,40 @@
     update_cache=yes
   with_items:
     - openjdk-7-jre-headless
+  when: ansible_distribution_release == "wheezy"
   tags:
     - elasticsearch
     - pkgs
 
-- name: "Check if Java 7 as the default"
+- name: "Install Elasticsearch's dependencies"
+  apt: >
+    name={{ item }}
+    state=present
+    update_cache=yes
+    default_release={{ ansible_distribution_release }}-backports
+  with_items:
+    - openjdk-8-jre-headless
+  when: ansible_distribution_release == "jessie"
+  tags:
+    - elasticsearch
+    - pkgs
+
+- name: "Check if Java 8 as the default"
   file: >
-    src=/usr/lib/jvm/java-1.7.0-openjdk-amd64/jre/bin/java
+    src=/usr/lib/jvm/java-1.8.0-openjdk-amd64/jre/bin/java
     dest=/etc/alternatives/java
     state=link
+  when: ansible_distribution_release == "jessie"
   register: java_set
   tags:
     - elasticsearch
     - files
 
-- name: "Ensure Java 7 is the default"
+- name: "Ensure Java 8 is the default"
   shell: |
     executable=/bin/bash
-    update-alternatives --set java /usr/lib/jvm/java-7-openjdk-amd64/jre/bin/java
+    update-alternatives --set java /usr/lib/jvm/java-8-openjdk-amd64/jre/bin/java
+  when: ansible_distribution_release == "jessie"
   when: java_set.changed
   tags:
     - elasticsearch
@@ -53,11 +47,26 @@
   apt: >
     update_cache=yes
     name=elasticsearch
+  register: elasticsearch_installed
   notify:
     - Restart ElasticSearch
   tags:
     - elasticsearch
     - pkgs
+
+# Currently, when a new systemd service file is uploaded, Ansible does not reload the
+# systemd daemon. So the service file that's just been uploaded is not recognized.
+# Systemd daemon needs to be restarted to see the updated service file.
+# The link below discusses whether systemctl should automatically reload the systemd daemon.
+# https://github.com/ansible/ansible-modules-core/issues/191
+- name: "Reload the Systemd daemon"
+  shell: >
+    systemctl daemon-reload
+  when: elasticsearch_installed|changed and ansible_distribution_release == "jessie"
+  tags:
+    - elasticsearch
+    - files
+    - service
 
 - name: "Configure Elasticsearch to automatically start during bootup"
   service: >
