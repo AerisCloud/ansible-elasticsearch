@@ -38,8 +38,12 @@ elasticsearch_cluster_name = elasticsearch1-somedc-prod
 # to false, we will use unicast discovery
 # instead (as in, we will add all nodes)
 # to configuration instead of relying on multicasting
-#
-elasticsearch_autodiscovery = true
+# For production, set to false.
+# Default: false.
+elasticsearch_autodiscovery = false
+
+# Default multicast port
+elasticsearch_autodiscovery_port = 54328
 
 # ElasticSearch heap size (default: 256m)
 # http://www.elasticsearch.org/guide/en/elasticsearch/guide/current/heap-sizing.html
@@ -47,7 +51,14 @@ elasticsearch_heap_size = 1g
 
 # Version of ElasticDump to install
 elasticdump_version = v0.12.0
+
+# Default Elasticsearch version.
+# Note: Ensure the meta/main.yml file uses the corresponding repository. (e.g. `elasticsearch-2.x`, `elasticsearch-1.7`, etc.)
+# See https://github.com/AerisCloud/ansible-repos for corresponding repositories.
+elasticsearch_version = 2.1.1
 ```
+
+
 
 ### Execution
 

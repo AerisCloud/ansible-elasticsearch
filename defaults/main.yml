@@ -1,6 +1,6 @@
 elasticsearch_tcp_port: 19350
 elasticsearch_http_port: 9200
-elasticsearch_autodiscovery: true
+elasticsearch_autodiscovery: false
 elasticsearch_heap_size: 256m
 
 elasticdump_version: v0.12.0

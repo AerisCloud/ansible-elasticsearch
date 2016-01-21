@@ -46,7 +46,7 @@
 - name: "Install Elasticsearch"
   apt: >
     update_cache=yes
-    name=elasticsearch
+    name=elasticsearch={{ elasticsearch_version }}
   register: elasticsearch_installed
   notify:
     - Restart ElasticSearch

@@ -17,12 +17,26 @@
     chdir=/usr/share/elasticsearch
     creates=/usr/share/elasticsearch/plugins/{{ item.dest }}
     
-    bin/plugin -install {{ item.src }}
+    bin/plugin install {{ item.src }}
   with_items:
     - src: royrusso/elasticsearch-HQ
-      dest: HQ
+      dest: hq
     - src: mobz/elasticsearch-head
       dest: head
+  tags:
+    - elasticsearch
+    - plugins
+
+- name: "Install ElasticSearch plugins"
+  shell: |
+    chdir=/usr/share/elasticsearch
+    creates=/usr/share/elasticsearch/plugins/{{ item.dest }}
+    
+    bin/plugin install {{ item.src }}
+  with_items:
+    - src: discovery-multicast
+      dest: discovery-multicast
+  when: elasticsearch_autodiscovery|string == "True"
   tags:
     - elasticsearch
     - plugins
