@@ -1,36 +1,38 @@
-- name: "Set elasticsearch version"
-  set_fact:
-    es_ver: "{{ elasticsearch_version[:3] }}"
-  tags:
-    - pkgs
-    - elasticsearch
-
-- name: "Download and install the Public Signing Key"
-  rpm_key: >
-    key=https://packages.elastic.co/GPG-KEY-elasticsearch
-    state=present
-  tags:
-    - pkgs
-    - elasticsearch
-
 - name: "Install Elasticsearch and its dependencies"
   yum: >
     name={{ item }}
     state=present
-    enablerepo=elasticsearch-{{ es_ver }}
+    enablerepo=elasticsearch
   with_items:
-    - java-1.7.0-openjdk
+    - java-1.8.0-openjdk
     - elasticsearch-{{ elasticsearch_version }}
+  register: elasticsearch_installed
   tags:
     - pkgs
     - elasticsearch
   notify:
     - Restart ElasticSearch
 
+# Currently, when a new systemd service file is uploaded, Ansible does not reload the
+# systemd daemon. So the service file that's just been uploaded is not recognized.
+# Systemd daemon needs to be restarted to see the updated service file.
+# The link below discusses whether systemctl should automatically reload the systemd daemon.
+# https://github.com/ansible/ansible-modules-core/issues/191
+- name: "Reload the Systemd daemon"
+  shell: >
+    systemctl daemon-reload
+  when: elasticsearch_installed|changed and ansible_distribution_major_version|int == 7
+  tags:
+    - elasticsearch
+    - files
+    - service
+
 - name: "Configure Elasticsearch to automatically start during bootup"
   service:
     name=elasticsearch
+    runlevel="95 10"
     enabled=yes
+  when: elasticsearch_installed|changed and ansible_distribution_major_version|int == 7
   tags:
     - pkgs
     - elasticsearch

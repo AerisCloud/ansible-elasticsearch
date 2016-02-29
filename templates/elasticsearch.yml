@@ -15,8 +15,12 @@ http.enabled: true
 
 # adapt these for discovery to work in your network! multicast can be tricky
 {% if elasticsearch_autodiscovery|string == "True" %}
+transport.publish_port: {{ elasticsearch_tcp_port }}
 discovery.zen.ping.multicast.address: {{ ansible_ssh_host }}
 discovery.zen.ping.multicast.group: 224.2.2.4
+discovery.zen.ping.multicast.enabled: true
+discovery.zen.ping.multicast.port: {{ elasticsearch_autodiscovery_port|default(54328) }}
+discovery.zen.ping.multicast.ttl: {{ elasticsearch_autodiscovery_ttl|default(3) }}
 {% else %}
 discovery.zen.ping.multicast.enabled: false
 discovery.zen.ping.unicast.hosts:

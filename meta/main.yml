@@ -12,6 +12,7 @@ galaxy_info:
     - name: Debian
       versions:
         - wheezy
+        - jessie
   categories:
     - database
     - database:nosql
@@ -21,7 +22,12 @@ dependencies:
   - role: aeriscloud.repos
     repositories:
       centos6:
-        - elasticsearch
+        - elasticsearch-2.x
       centos7:
-        - elasticsearch
+        - elasticsearch-2.x
+      wheezy:
+        - elasticsearch-2.x
+      jessie:
+        - backports
+        - elasticsearch-2.x
   - role: aeriscloud.yum
